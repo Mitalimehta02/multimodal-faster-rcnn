@@ -1,0 +1,64 @@
+# LLVIP V9 — Matching paper's training recipe
+# Paper: 10 epochs, batch 16, LR 2.5e-4, AdamW
+
+dataset_params:
+  root: "/home/23uec571/LLVIP/LLVIP"
+  rgb_train_path: "visible/train"
+  ir_train_path: "infrared/train"
+  ann_train_path: "Annotations"
+  rgb_test_path: "visible/test"
+  ir_test_path: "infrared/test"
+  ann_test_path: "Annotations"
+  num_classes: 2
+  image_size: [512, 640]
+  scale_range: [0.75, 1.25]
+  rgb_brightness_jitter: 0.15
+  rgb_contrast_jitter: 0.15
+  hflip_prob: 0.5
+  cutout_prob: 0.0
+  cutout_scale: [0.05, 0.10]
+
+train_params:
+  seed: 54
+  batch_size: 4
+  grad_accum_steps: 4               # effective batch = 16
+  num_epochs: 15
+  lr: 0.00025                        # 2.5e-4 — matches paper
+  min_lr: 0.0000001
+  warmup_epochs: 2
+  warmup_start_lr: 0.0000001
+  freeze_low_level_epochs: 0
+  freeze_backbone_epochs: 3
+  val_ratio: 0.0
+  checkpoint_metric: "test_map"
+  weight_decay: 0.00005
+  eval_score_thresh: 0.05
+  score_thresh: 0.50
+  vis_score_thresh: 0.50
+  num_workers: 8
+  task_name: "llvip_v9"
+  ckpt_name: "best_model.pth"
+
+model_params:
+  pretrained_backbone: true          # D2 COCO weights
+  freeze_backbone: true
+  min_size: 512
+  max_size: 640
+  fpn_out_channels: 256
+  box_score_thresh: 0.001
+  box_nms_thresh: 0.50
+  box_detections_per_img: 300
+  rpn_pre_nms_top_n_train: 4000
+  rpn_pre_nms_top_n_test: 3000
+  rpn_post_nms_top_n_train: 2000
+  rpn_post_nms_top_n_test: 1500
+  rpn_nms_thresh: 0.70
+  anchor_sizes:
+    - [8, 16]
+    - [24, 32]
+    - [48, 64]
+    - [96, 128]
+    - [192, 256]
+  anchor_aspect_ratios: [0.33, 0.5, 0.75, 1.0, 2.0]
+  focal_alpha: 0.25
+  focal_gamma: 2.0

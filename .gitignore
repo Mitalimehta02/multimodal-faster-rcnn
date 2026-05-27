@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.env
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Training outputs
+outputs/
+checkpoints/
+*.pth
+*.pt
+*.onnx
+
+# Logs
+*.log
+
+# Dataset directories (download separately)
+data/
+datasets/
+FLIR_aligned/
+LLVIP/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

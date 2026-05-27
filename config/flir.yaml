@@ -1,0 +1,72 @@
+# FLIR V9 — Matching paper's training recipe
+# Paper: 10 epochs, batch 16, LR 2.5e-4, AdamW
+# We use: 15 epochs (slight margin), eff batch 24, LR 2.5e-4
+
+dataset_params:
+  root: "/home/23uec571/FLIR_aligned"
+  train_split_file: "align_train.txt"
+  test_split_file: "align_validation.txt"
+  rgb_template: "JPEGImages/FLIR_{id}_RGB.jpg"
+  ir_template: "JPEGImages/FLIR_{id}_PreviewData.jpeg"
+  ann_template: "Annotations/FLIR_{id}_PreviewData.xml"
+  num_classes: 4
+  image_size: [672, 864]
+  keep_empty: true
+
+  scale_range: [0.75, 1.25]
+  rgb_brightness_jitter: 0.15
+  rgb_contrast_jitter: 0.15
+  rgb_saturation_jitter: 0.10
+  rgb_hue_jitter: 0.05
+  rgb_random_grayscale_prob: 0.10
+  thermal_brightness_jitter: 0.0
+  thermal_contrast_jitter: 0.0
+  hflip_prob: 0.5
+  cutout_prob: 0.0
+  cutout_scale: [0.05, 0.10]
+
+train_params:
+  seed: 52
+  batch_size: 4
+  grad_accum_steps: 4               # effective batch = 16 (matches paper)
+  num_epochs: 15                     # paper uses 10, we add 5 for safety
+  lr: 0.00025                        # 2.5e-4 — matches paper exactly
+  min_lr: 0.0000001
+  warmup_epochs: 2                   # quick warmup, paper doesn't specify one
+  warmup_start_lr: 0.0000001
+  freeze_low_level_epochs: 0
+  freeze_backbone_epochs: 3          # freeze backbone first 3 epochs only
+  val_ratio: 0.0
+  checkpoint_metric: "test_map"
+  weight_decay: 0.00005
+  eval_score_thresh: 0.05
+  score_thresh: 0.50
+  vis_score_thresh: 0.50
+  num_workers: 8
+  task_name: "flir_v9"
+  ckpt_name: "best_model.pth"
+
+model_params:
+  pretrained_backbone: true          # D2 COCO weights
+  freeze_backbone: true              # starts frozen, unfreezes at epoch 3
+  min_size: 672
+  max_size: 864
+  fpn_out_channels: 256
+  box_score_thresh: 0.001
+  box_nms_thresh: 0.50
+  box_detections_per_img: 300
+  rpn_pre_nms_top_n_train: 6000
+  rpn_pre_nms_top_n_test: 5000
+  rpn_post_nms_top_n_train: 3000
+  rpn_post_nms_top_n_test: 2500
+  rpn_nms_thresh: 0.70
+  anchor_sizes:
+    - [8, 16]
+    - [24, 32]
+    - [48, 64]
+    - [96, 128]
+    - [192, 256]
+  anchor_aspect_ratios: [0.5, 0.75, 1.0, 2.0, 3.0]
+  box_loss_type: "diou"
+  focal_alpha: 0.25
+  focal_gamma: 2.0
