@@ -238,6 +238,31 @@ def main():
     if args.data_root:
         ds_cfg["root"] = os.path.abspath(args.data_root)
 
+    # Path check: verify dataset root directory exists
+    if not os.path.isdir(ds_cfg["root"]):
+        print(f"\n[ERROR] Dataset root directory not found: '{ds_cfg['root']}'")
+        print("Please check the 'root' path in your config YAML file or use the --data_root argument to specify the correct path.")
+        sys.exit(1)
+
+    # Path check: verify split files / subdirectories exist
+    if "rgb_train_path" in ds_cfg:
+        # LLVIP checks
+        for folder_key in ["rgb_train_path", "ir_train_path", "ann_train_path"]:
+            folder_path = os.path.join(ds_cfg["root"], ds_cfg[folder_key])
+            if not os.path.isdir(folder_path):
+                print(f"\n[ERROR] LLVIP directory not found: '{folder_path}'")
+                print(f"Please verify that the '{folder_key}' path in your config exists under the dataset root.")
+                sys.exit(1)
+    else:
+        # FLIR checks
+        for split_key in ["train_split_file", "test_split_file"]:
+            split_file = ds_cfg[split_key]
+            split_path = os.path.join(ds_cfg["root"], split_file) if not os.path.isabs(split_file) else split_file
+            if not os.path.isfile(split_path):
+                print(f"\n[ERROR] FLIR split file not found: '{split_path}'")
+                print("Please make sure your dataset root and split files are placed correctly.")
+                sys.exit(1)
+
     tr_cfg = cfg["train_params"]
     model_cfg = cfg.get("model_params", {})
 
