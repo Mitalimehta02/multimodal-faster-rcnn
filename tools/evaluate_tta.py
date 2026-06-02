@@ -29,16 +29,17 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 from dataset.flir_aligned import FlirAlignedDataset
-from dataset.voc import MultimodalVOCDataset
 from utils.coco_detection_metrics import compute_coco_detection_metrics
+
+PAPER_TARGETS = {"ap50": 79.20, "ap75": 37.40, "map_coco": 41.30}
 
 
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 def parse_args():
-    parser = argparse.ArgumentParser(description="TTA evaluation for FLIR aligned / LLVIP")
-    parser.add_argument("--config",      required=True,  help="YAML config path")
+    parser = argparse.ArgumentParser(description="TTA evaluation for FLIR aligned")
+    parser.add_argument("--config",      required=True,  help="FLIR YAML config")
     parser.add_argument("--checkpoint",  required=True,  help="Path to .pth checkpoint")
     parser.add_argument("--gpu",         default="0")
     parser.add_argument("--data_root",   default=None)
@@ -75,20 +76,6 @@ def collate_fn(batch):
 
 def build_test_dataset(ds_cfg, image_size=None):
     size = image_size or tuple(ds_cfg.get("image_size", [512, 640]))
-    if "rgb_test_path" in ds_cfg:
-        root = ds_cfg["root"]
-        rgb_dir = os.path.join(root, ds_cfg["rgb_test_path"])
-        ir_dir = os.path.join(root, ds_cfg["ir_test_path"])
-        ann_dir = os.path.join(root, ds_cfg["ann_test_path"])
-        return MultimodalVOCDataset(
-            split="test",
-            rgb_dir=rgb_dir,
-            ir_dir=ir_dir,
-            ann_dir=ann_dir,
-            image_size=size,
-            hflip_prob=0.0,
-            cutout_prob=0.0,
-        )
     return FlirAlignedDataset(
         root=ds_cfg["root"],
         split_file=os.path.join(ds_cfg["root"], ds_cfg["test_split_file"])
@@ -257,22 +244,11 @@ def main():
         print("Please check the 'root' path in your config YAML file or use the --data_root argument to specify the correct path.")
         sys.exit(1)
 
-    is_llvip = "rgb_test_path" in ds_cfg
-    if is_llvip:
-        # LLVIP checks
-        for folder_key in ["rgb_test_path", "ir_test_path", "ann_test_path"]:
-            folder_path = os.path.join(ds_cfg["root"], ds_cfg[folder_key])
-            if not os.path.isdir(folder_path):
-                print(f"\n[ERROR] LLVIP directory not found: '{folder_path}'")
-                print(f"Please verify that the '{folder_key}' path in your config exists under the dataset root.")
-                sys.exit(1)
-    else:
-        # FLIR checks
-        split_file = os.path.join(ds_cfg["root"], ds_cfg["test_split_file"]) if not os.path.isabs(ds_cfg["test_split_file"]) else ds_cfg["test_split_file"]
-        if not os.path.isfile(split_file):
-            print(f"\n[ERROR] FLIR test split file not found: '{split_file}'")
-            print("Please make sure your dataset root and split files are placed correctly.")
-            sys.exit(1)
+    split_file = os.path.join(ds_cfg["root"], ds_cfg["test_split_file"]) if not os.path.isabs(ds_cfg["test_split_file"]) else ds_cfg["test_split_file"]
+    if not os.path.isfile(split_file):
+        print(f"\n[ERROR] FLIR test split file not found: '{split_file}'")
+        print("Please make sure your dataset root and split files are placed correctly.")
+        sys.exit(1)
 
     if not os.path.isfile(args.checkpoint):
         print(f"\n[ERROR] Checkpoint file not found: '{args.checkpoint}'")
@@ -305,7 +281,7 @@ def main():
         pass
 
     print(f"\nTTA config")
-    print(f"  Dataset : {'LLVIP' if is_llvip else 'FLIR aligned'}")
+    print(f"  Dataset : FLIR aligned")
     print(f"  Scales  : {args.scales}")
     print(f"  H-flip  : {args.hflip}")
     print(f"  NMS th  : {args.nms_thresh}")
@@ -344,20 +320,14 @@ def main():
         score_thresh=0.50,
     )
 
-    paper_targets = (
-        {"ap50": 96.50, "ap75": 71.30, "map_coco": 60.80}
-        if is_llvip
-        else {"ap50": 79.20, "ap75": 37.40, "map_coco": 41.30}
-    )
-
     beats = (
-        metrics["ap50"]     > paper_targets["ap50"]
-        and metrics["ap75"] > paper_targets["ap75"]
-        and metrics["map_coco"] > paper_targets["map_coco"]
+        metrics["ap50"]     > PAPER_TARGETS["ap50"]
+        and metrics["ap75"] > PAPER_TARGETS["ap75"]
+        and metrics["map_coco"] > PAPER_TARGETS["map_coco"]
     )
 
     print("\n" + "=" * 72)
-    print(f"{'LLVIP' if is_llvip else 'FLIR aligned'}  —  TTA Evaluation")
+    print("FLIR aligned  —  TTA Evaluation")
     print("=" * 72)
     print(f"Checkpoint : {args.checkpoint}")
     print(f"Images     : {len(dataset)}")
@@ -367,12 +337,12 @@ def main():
     print(f"Precision  : {metrics['precision']:.4f}")
     print(f"Recall     : {metrics['recall']:.4f}")
     print("-" * 72)
-    print(f"CSSA Paper : AP50={paper_targets['ap50']:.2f}  AP75={paper_targets['ap75']:.2f}  mAP={paper_targets['map_coco']:.2f}")
+    print(f"CSSA Paper : AP50=79.20  AP75=37.40  mAP=41.30")
     print(
         f"Delta      : "
-        f"AP50={metrics['ap50'] - paper_targets['ap50']:+.2f}  "
-        f"AP75={metrics['ap75'] - paper_targets['ap75']:+.2f}  "
-        f"mAP={metrics['map_coco'] - paper_targets['map_coco']:+.2f}"
+        f"AP50={metrics['ap50'] - PAPER_TARGETS['ap50']:+.2f}  "
+        f"AP75={metrics['ap75'] - PAPER_TARGETS['ap75']:+.2f}  "
+        f"mAP={metrics['map_coco'] - PAPER_TARGETS['map_coco']:+.2f}"
     )
     print(f"Status     : {'✅ BEATS PAPER TARGETS' if beats else '❌ DOES NOT BEAT ALL TARGETS'}")
     print("=" * 72)
@@ -386,7 +356,7 @@ def main():
                 "tta_hflip": args.hflip,
                 "nms_thresh": args.nms_thresh,
                 "metrics": metrics,
-                "paper_targets": paper_targets,
+                "paper_targets": PAPER_TARGETS,
                 "beats_paper": beats,
             }, fh, indent=2)
         print(f"JSON saved : {args.output_json}")
